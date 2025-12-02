@@ -1,194 +1,229 @@
-import { useState } from "react";
-import { StyleSheet, View, TextInput } from "react-native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import React from "react";
+import { StyleSheet, View, Pressable, Alert } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-import { ScreenKeyboardAwareScrollView } from "@/components/ScreenKeyboardAwareScrollView";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
-import { Button } from "@/components/Button";
-import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius, Typography } from "@/constants/theme";
 import Spacer from "@/components/Spacer";
-import type { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
+import { useTheme } from "@/hooks/useTheme";
+import { Spacing, BorderRadius } from "@/constants/theme";
+import { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
+import { mockUser, mockResumes } from "@/data/mockData";
 
 type ProfileScreenProps = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, "Profile">;
 };
 
-export default function ProfileScreen({ navigation }: ProfileScreenProps) {
-  const { theme, isDark } = useTheme();
+interface MenuItemProps {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  subtitle?: string;
+  onPress: () => void;
+  danger?: boolean;
+}
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleSubmit = () => {
-    console.log("Form submitted:", { name, email, password });
-  };
-
-  const inputStyle = [
-    styles.input,
-    {
-      backgroundColor: theme.backgroundDefault,
-      color: theme.text,
-    },
-  ];
+function MenuItem({ icon, label, subtitle, onPress, danger }: MenuItemProps) {
+  const { theme } = useTheme();
 
   return (
-    <ScreenKeyboardAwareScrollView>
-      <View style={styles.section}>
-        <ThemedText type="h1">Heading 1</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          32px • Bold
+    <Pressable
+      style={({ pressed }) => [
+        styles.menuItem,
+        { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.8 : 1 },
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.menuItemContent}>
+        <View
+          style={[
+            styles.menuIconContainer,
+            {
+              backgroundColor: danger
+                ? theme.errorLight
+                : theme.backgroundSecondary,
+            },
+          ]}
+        >
+          <Feather
+            name={icon}
+            size={20}
+            color={danger ? theme.error : theme.link}
+          />
+        </View>
+        <View style={styles.menuTextContainer}>
+          <ThemedText
+            type="body"
+            style={[styles.menuLabel, danger ? { color: theme.error } : null]}
+          >
+            {label}
+          </ThemedText>
+          {subtitle ? (
+            <ThemedText secondary type="small">
+              {subtitle}
+            </ThemedText>
+          ) : null}
+        </View>
+      </View>
+      <Feather name="chevron-right" size={20} color={theme.textTertiary} />
+    </Pressable>
+  );
+}
+
+export default function ProfileScreen({ navigation }: ProfileScreenProps) {
+  const { theme } = useTheme();
+
+  const handleLogout = () => {
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: () => {
+          Alert.alert("Logged Out", "You have been logged out successfully");
+        },
+      },
+    ]);
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase();
+  };
+
+  return (
+    <ScreenScrollView>
+      <View style={styles.profileHeader}>
+        <Pressable style={[styles.avatar, { backgroundColor: theme.link }]}>
+          <ThemedText type="h1" style={{ color: "#FFFFFF" }}>
+            {getInitials(mockUser.name)}
+          </ThemedText>
+          <View
+            style={[styles.editBadge, { backgroundColor: theme.backgroundRoot }]}
+          >
+            <Feather name="edit-2" size={12} color={theme.link} />
+          </View>
+        </Pressable>
+        <Spacer height={Spacing.lg} />
+        <ThemedText type="h2">{mockUser.name}</ThemedText>
+        <ThemedText secondary type="body">
+          {mockUser.email}
         </ThemedText>
       </View>
-
-      <View style={styles.section}>
-        <ThemedText type="h2">Heading 2</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          28px • Bold
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="h3">Heading 3</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          24px • Semi-Bold
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="h4">Heading 4</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          20px • Semi-Bold
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="body">
-          Body text - This is the default text style for paragraphs and general
-          content.
-        </ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          16px • Regular
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="small">
-          Small text - Used for captions, labels, and secondary information.
-        </ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          14px • Regular
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="link">Link text - Interactive elements</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          16px • Regular • Colored
-        </ThemedText>
-      </View>
-
-      <Spacer height={Spacing["4xl"]} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Name
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={name}
-          onChangeText={setName}
-          placeholder="Enter your name"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          autoCapitalize="words"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Email
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="your.email@example.com"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Password
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter a password"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          secureTextEntry
-          autoCapitalize="none"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <Button onPress={handleSubmit}>Submit Form</Button>
 
       <Spacer height={Spacing["2xl"]} />
 
-      <ThemedText type="h3" style={styles.sectionTitle}>
-        Testing
+      <View style={styles.section}>
+        <ThemedText type="small" secondary style={styles.sectionLabel}>
+          ACCOUNT
+        </ThemedText>
+        <Spacer height={Spacing.sm} />
+        <MenuItem
+          icon="file-text"
+          label="My Resumes"
+          subtitle={`${mockResumes.length} resumes uploaded`}
+          onPress={() => navigation.navigate("Resumes")}
+        />
+        <Spacer height={Spacing.sm} />
+        <MenuItem
+          icon="settings"
+          label="Settings"
+          onPress={() => navigation.navigate("Settings")}
+        />
+      </View>
+
+      <Spacer height={Spacing.xl} />
+
+      <View style={styles.section}>
+        <ThemedText type="small" secondary style={styles.sectionLabel}>
+          SUPPORT
+        </ThemedText>
+        <Spacer height={Spacing.sm} />
+        <MenuItem
+          icon="help-circle"
+          label="Help & Support"
+          onPress={() => Alert.alert("Help", "Contact support@jobmatch.app")}
+        />
+        <Spacer height={Spacing.sm} />
+        <MenuItem
+          icon="shield"
+          label="Privacy Policy"
+          onPress={() => Alert.alert("Privacy", "Privacy policy content")}
+        />
+      </View>
+
+      <Spacer height={Spacing.xl} />
+
+      <View style={styles.section}>
+        <MenuItem icon="log-out" label="Log Out" onPress={handleLogout} danger />
+      </View>
+
+      <Spacer height={Spacing.xl} />
+
+      <ThemedText tertiary type="caption" style={styles.version}>
+        JobMatch v1.0.0
       </ThemedText>
-      <Spacer height={Spacing.md} />
-      <Button
-        onPress={() => navigation.navigate("Crash")}
-        style={styles.crashButton}
-      >
-        Crash App
-      </Button>
-    </ScreenKeyboardAwareScrollView>
+    </ScreenScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  section: {
-    marginBottom: Spacing["3xl"],
+  profileHeader: {
+    alignItems: "center",
+    paddingTop: Spacing.xl,
   },
-  meta: {
-    opacity: 0.5,
-    marginTop: Spacing.sm,
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  fieldContainer: {
-    width: "100%",
+  editBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  label: {
-    marginBottom: Spacing.sm,
+  section: {},
+  sectionLabel: {
     fontWeight: "600",
-    opacity: 0.8,
+    letterSpacing: 0.5,
+    marginLeft: Spacing.xs,
   },
-  input: {
-    height: Spacing.inputHeight,
-    borderWidth: 0,
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: Spacing.lg,
     borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.lg,
-    fontSize: Typography.body.fontSize,
   },
-  sectionTitle: {
-    marginTop: Spacing.xl,
+  menuItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
   },
-  crashButton: {
-    backgroundColor: "#FF3B30",
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuTextContainer: {
+    gap: 2,
+  },
+  menuLabel: {
+    fontWeight: "500",
+  },
+  version: {
+    textAlign: "center",
   },
 });
