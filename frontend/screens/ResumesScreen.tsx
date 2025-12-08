@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
   Pressable,
   Alert,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -26,13 +27,12 @@ import { Button } from "@/components/Button";
 import Spacer from "@/components/Spacer";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { mockResumes } from "@/data/mockData";
-import { Resume } from "@/types/job";
+import { uploadResume, listResumes, deleteResume, type ResumeListItem } from "@/utils/api";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface ResumeCardProps {
-  resume: Resume;
+  resume: ResumeListItem;
   onDelete: (id: string) => void;
 }
 
@@ -116,7 +116,11 @@ function ResumeCard({ resume, onDelete }: ResumeCardProps) {
               {resume.filename}
             </ThemedText>
             <ThemedText secondary type="small">
-              {resume.dateAdded} • {resume.size}
+              {new Date(resume.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })} • {Math.round(resume.file_size / 1024)} KB
             </ThemedText>
           </View>
           <Feather name="more-vertical" size={20} color={theme.textTertiary} />
@@ -128,70 +132,136 @@ function ResumeCard({ resume, onDelete }: ResumeCardProps) {
 
 export default function ResumesScreen() {
   const { theme } = useTheme();
-  const [resumes, setResumes] = useState<Resume[]>(mockResumes);
+  const [resumes, setResumes] = useState<ResumeListItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  // Load resumes on mount
+  useEffect(() => {
+    loadResumes();
+  }, []);
+
+  async function loadResumes() {
+    try {
+      setLoading(true);
+      const data = await listResumes();
+      setResumes(data);
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to load resumes");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handleAddResume = async () => {
     try {
+      // Pick PDF file
       const result = await DocumentPicker.getDocumentAsync({
         type: ["application/pdf"],
         copyToCacheDirectory: true,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newResume: Resume = {
-          id: Date.now().toString(),
-          filename: result.assets[0].name,
-          dateAdded: new Date().toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          size: `${Math.round((result.assets[0].size || 0) / 1024)} KB`,
-        };
-        setResumes([newResume, ...resumes]);
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
+      if (result.canceled) return;
+
+      const file = result.assets[0];
+
+      // Validate file size (10MB max)
+      if (file.size && file.size > 10 * 1024 * 1024) {
+        Alert.alert("Error", "File too large. Maximum size: 10MB");
+        return;
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to pick document");
+
+      setUploading(true);
+
+      // Upload to backend
+      await uploadResume(file.uri, file.name, file.size || 0);
+
+      // Show success feedback
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      Alert.alert("Success", "Resume uploaded successfully!");
+
+      // Reload list
+      await loadResumes();
+    } catch (error: any) {
+      Alert.alert("Upload Failed", error.message || "Failed to upload resume");
+    } finally {
+      setUploading(false);
     }
   };
 
-  const handleDeleteResume = (id: string) => {
-    setResumes(resumes.filter((r) => r.id !== id));
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+  const handleDeleteResume = async (id: string) => {
+    try {
+      await deleteResume(id);
+      
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+      
+      // Reload list
+      await loadResumes();
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to delete resume");
     }
   };
 
-  const renderItem = ({ item }: { item: Resume }) => (
+  const renderItem = ({ item }: { item: ResumeListItem }) => (
     <>
       <ResumeCard resume={item} onDelete={handleDeleteResume} />
       <Spacer height={Spacing.md} />
     </>
   );
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <View
-        style={[styles.emptyIcon, { backgroundColor: theme.backgroundDefault }]}
-      >
-        <Feather name="file-text" size={48} color={theme.textTertiary} />
+  const renderEmpty = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Spacer height={Spacing.md} />
+          <ThemedText secondary>Loading resumes...</ThemedText>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <View
+          style={[styles.emptyIcon, { backgroundColor: theme.backgroundDefault }]}
+        >
+          <Feather name="file-text" size={48} color={theme.textTertiary} />
+        </View>
+        <ThemedText type="h3" style={styles.emptyTitle}>
+          No Resumes Yet
+        </ThemedText>
+        <ThemedText secondary style={styles.emptySubtitle}>
+          Upload your resume to get personalized job matches
+        </ThemedText>
       </View>
-      <ThemedText type="h3" style={styles.emptyTitle}>
-        No Resumes Yet
-      </ThemedText>
-      <ThemedText secondary style={styles.emptySubtitle}>
-        Upload your resume to get personalized job matches
-      </ThemedText>
-    </View>
-  );
+    );
+  };
 
   const renderFooter = () => (
     <View style={styles.footer}>
       <Spacer height={Spacing.lg} />
-      <Button onPress={handleAddResume}>Add Resume</Button>
+      <Button 
+        onPress={handleAddResume} 
+        disabled={uploading}
+      >
+        {uploading ? "Uploading..." : "Add Resume"}
+      </Button>
+      {uploading && (
+        <>
+          <Spacer height={Spacing.md} />
+          <View style={styles.uploadingContainer}>
+            <ActivityIndicator size="small" color={theme.primary} />
+            <Spacer width={Spacing.sm} />
+            <ThemedText secondary type="small">
+              Processing your resume...
+            </ThemedText>
+          </View>
+        </>
+      )}
     </View>
   );
 
@@ -270,5 +340,10 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingTop: Spacing.md,
+  },
+  uploadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
