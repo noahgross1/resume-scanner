@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from typing import List
 import logging
 
-from app.middleware.auth import get_current_user
+from app.middleware.auth import verify_jwt
 from app.models.resume import (
     ResumeUploadResponse,
     ResumeListItem,
@@ -25,7 +25,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 @router.post("", response_model=ResumeUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_resume(
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(verify_jwt)
 ):
     """
     Upload and process a resume PDF.
@@ -38,7 +38,9 @@ async def upload_resume(
     
     Returns resume ID and metadata.
     """
-    user_id = current_user["id"]
+
+    print(f"Current user: {current_user}")
+    user_id = current_user.user.id
     
     # Validate file type
     if not file.filename.endswith('.pdf'):
@@ -104,7 +106,7 @@ async def upload_resume(
 
 @router.get("", response_model=List[ResumeListItem])
 async def list_resumes(
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(verify_jwt)
 ):
     """
     Get list of user's uploaded resumes.
@@ -129,7 +131,7 @@ async def list_resumes(
 @router.get("/{resume_id}", response_model=ResumeDetail)
 async def get_resume(
     resume_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(verify_jwt)
 ):
     """
     Get specific resume details including full text.
@@ -161,7 +163,7 @@ async def get_resume(
 @router.delete("/{resume_id}")
 async def delete_resume(
     resume_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(verify_jwt)
 ):
     """Delete a resume. Only owner can delete."""
     user_id = current_user["id"]

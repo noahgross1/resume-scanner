@@ -15,8 +15,8 @@ SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Indeed API Configuration (for Task 3)
-INDEED_API_KEY = os.getenv("INDEED_API_KEY")
+# TheirStack API Configuration (for Task 3 - Job Search)
+THEIRSTACK_API_KEY = os.getenv("THEIRSTACK_API_KEY")
 
 # Validate required environment variables
 def validate_config():

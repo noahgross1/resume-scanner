@@ -3,7 +3,7 @@ JobMatch API - FastAPI application entry point.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import resumes
+from app.routers import resumes, jobs
 from app.config import validate_config
 import logging
 
@@ -41,6 +41,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(resumes.router)
+app.include_router(jobs.router)
 
 
 @app.get("/")

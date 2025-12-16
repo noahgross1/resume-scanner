@@ -246,3 +246,55 @@ AND tablename IN ('resumes', 'search_history');
 -- ✅ Task 3: Job Search with Vector RAG
 -- ============================================
 
+-- Enable pgvector and pgcrypto (for gen_random_uuid)
+create extension if not exists vector;
+
+-- JOB CHUNKS table (pre-ingested job descriptions)
+create table if not exists job_chunks (
+  id bigserial primary key,
+  job_id text not null,                   -- external job identifier
+  job_title text,
+  location text,
+  chunk_text text not null,
+  embedding vector(1536) not null,        -- must match your embed model dim
+  metadata jsonb,
+  created_at timestamptz default now()
+);
+
+-- HNSW index (preferred for production)
+create index if not exists idx_job_chunks_hnsw
+  on job_chunks
+  using hnsw (embedding vector_cosine_ops);
+
+---------------------------------------------------------
+
+-- Resume metadata table
+create table if not exists resumes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null
+      references auth.users(id)
+      on delete cascade,
+  filename text,
+  created_at timestamptz default now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_resumes_user_id ON resumes(user_id);
+
+---------------------------------------------------------
+
+-- Resume chunks table
+create table if not exists resume_chunks (
+  id bigserial primary key,
+  resume_id uuid not null
+      references resumes(id)
+      on delete cascade,
+  chunk_text text not null,
+  embedding vector(1536) not null,
+  metadata jsonb,
+  created_at timestamptz default now()
+);
+
+-- HNSW index for resume chunks (if running resume→job similarity)
+create index if not exists idx_resume_chunks_hnsw
+  on resume_chunks
+  using hnsw (embedding vector_cosine_ops);

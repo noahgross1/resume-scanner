@@ -1,11 +1,12 @@
 """
 Authentication middleware for validating Supabase JWT tokens.
 """
-from fastapi import HTTPException, Security
+from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from app.config import SUPABASE_JWT_SECRET
 import logging
+from app.database import supabase
 
 logger = logging.getLogger(__name__)
 
@@ -72,3 +73,19 @@ async def get_current_user(
             detail="Authentication failed"
         )
 
+def verify_jwt(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    try:
+        user = supabase.auth.get_user(token)
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token: user not found"
+            )
+        return user
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication failed"
+        )
